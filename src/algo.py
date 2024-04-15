@@ -40,34 +40,34 @@ class LightsDesignerAlgorithm:
 
     def run(self):
         # Run the algorithm
-        init_population: np.ndarray = self.generate_initial_population()
+        init_population: np.ndarray = self.__generate_initial_population()
         population = init_population
         population_history = []
         statistics_history = []
 
         for _ in range(self.generations):
             # Select parents
-            parents = self.select_parents(population)
+            parents = self.__select_parents(population)
 
             # Crossover
-            pairs = self.make_pairs_to_crossover(parents)
+            pairs = self.__make_pairs_to_crossover(parents)
 
             unmutated_parents = []
             for pair in pairs:
-                new_system1, new_system2 = self.crossover(pair[0], pair[1])
+                new_system1, new_system2 = self.__crossover(pair[0], pair[1])
                 unmutated_parents.append(new_system1)
                 unmutated_parents.append(new_system2)
 
             unmutated_parents = np.array(unmutated_parents)
 
             # Mutation
-            mutated_population = self.mutate(unmutated_parents)
+            mutated_population = self.__mutate(unmutated_parents)
 
             # Merge old population with mutated population
             population = np.concatenate((population, mutated_population))
 
             # Get best, worst and mean fitness
-            best, worst, mean = self.get_mean_best_worst_fitness(population)
+            best, worst, mean = self.__get_mean_best_worst_fitness(population)
             statistics_history.append(
                 {"best": best["fitness"], "worst": worst["fitness"], "mean": mean}
             )
@@ -75,11 +75,11 @@ class LightsDesignerAlgorithm:
             population_history.append(population)
 
             # Prune population
-            population = self.prune(population)
+            population = self.__prune(population)
 
         return population_history, statistics_history
 
-    def generate_initial_population(self) -> np.ndarray:
+    def __generate_initial_population(self) -> np.ndarray:
         population = []
         width_per_grid = self.width / self.grid_width
         height_per_grid = self.height / self.grid_height
@@ -91,7 +91,7 @@ class LightsDesignerAlgorithm:
                     random_bulb = session.query(Bulb).order_by(func.rand()).first()
                     grids = np.append(
                         grids,
-                        self.calculate_data_per_grid(
+                        self.__calculate_data_per_grid(
                             width_per_grid,
                             height_per_grid,
                             random_bulb,
@@ -100,18 +100,19 @@ class LightsDesignerAlgorithm:
                         ),
                     )
 
-            mean = self.calculate_mean(grids)
+            mean = self.__calculate_mean(grids)
+            standartd_deviation = self.__calculate_standard_deviation(grids, mean)
             system = {
                 "grids": grids,
                 "mean": mean,
-                "standard_deviation": self.calculate_standard_deviation(grids, mean),
-                "fitness": abs(self.min_flux_needed - mean),
+                "standard_deviation": standartd_deviation,
+                "fitness": self.__get_fitness(mean, standartd_deviation),
             }
             population.append(system)
 
         return np.array(population)
 
-    def calculate_data_per_grid(
+    def __calculate_data_per_grid(
         self,
         width_per_grid: float,
         height_per_grid: float,
@@ -126,21 +127,21 @@ class LightsDesignerAlgorithm:
             "luxes": random_bulb.lumens / (width_per_grid * height_per_grid),
         }
 
-    def calculate_mean(self, grids: np.ndarray):
+    def __calculate_mean(self, grids: np.ndarray):
         mean = 0
         for grid in grids:
             mean += grid["luxes"]
 
         return mean / len(grids)
 
-    def calculate_standard_deviation(self, grids: np.ndarray, mean: float):
+    def __calculate_standard_deviation(self, grids: np.ndarray, mean: float):
         standard_deviation = 0
         for grid in grids:
             standard_deviation += (grid["luxes"] - mean) ** 2
 
         return np.sqrt(standard_deviation / len(grids))
 
-    def select_parents(self, population: np.ndarray):
+    def __select_parents(self, population: np.ndarray):
         parents = []
         for indv in population:
             if (random_int(0, 100) / 100) <= self.prob_crossover:
@@ -148,7 +149,7 @@ class LightsDesignerAlgorithm:
 
         return np.array(parents)
 
-    def make_pairs_to_crossover(self, parents: np.ndarray):
+    def __make_pairs_to_crossover(self, parents: np.ndarray):
         pairs = []
         for indv1 in parents:
             random_i = random_int(0, len(parents) - 1)
@@ -157,7 +158,7 @@ class LightsDesignerAlgorithm:
 
         return np.array(pairs)
 
-    def crossover(self, indv1: dict, indv2: dict):
+    def __crossover(self, indv1: dict, indv2: dict):
         grids1 = indv1["grids"]
         grids2 = indv2["grids"]
 
@@ -169,29 +170,33 @@ class LightsDesignerAlgorithm:
             (grids2[:crossover_point], grids1[crossover_point:])
         )
 
-        new_system1_mean = self.calculate_mean(new_grids1)
+        new_system1_mean = self.__calculate_mean(new_grids1)
+        new_system1_standard_deviation = self.__calculate_standard_deviation(
+            new_grids1, new_system1_mean
+        )
         new_system1 = {
             "grids": new_grids1,
             "mean": new_system1_mean,
-            "standard_deviation": self.calculate_standard_deviation(
-                new_grids1, new_system1_mean
+            "standard_deviation": new_system1_standard_deviation,
+            "fitness": self.__get_fitness(
+                new_system1_mean, new_system1_standard_deviation
             ),
-            "fitness": abs(self.min_flux_needed - new_system1_mean),
         }
 
-        new_system2_mean = self.calculate_mean(new_grids2)
+        new_system2_mean = self.__calculate_mean(new_grids2)
+        new_system2_standard_deviation = self.__calculate_standard_deviation(
+            new_grids2, new_system2_mean
+        )
         new_system2 = {
             "grids": new_grids2,
             "mean": new_system2_mean,
-            "standard_deviation": self.calculate_standard_deviation(
-                new_grids2, new_system2_mean
-            ),
-            "fitness": abs(self.min_flux_needed - new_system2_mean),
+            "standard_deviation": new_system2_standard_deviation,
+            "fitness": new_system2_standard_deviation,
         }
 
         return new_system1, new_system2
 
-    def mutate(self, population: np.ndarray):
+    def __mutate(self, population: np.ndarray):
         width_per_grid = self.width / self.grid_width
         height_per_grid = self.height / self.grid_height
         for indv in population:
@@ -199,10 +204,11 @@ class LightsDesignerAlgorithm:
                 grids = indv["grids"]
                 for i in range(len(grids)):
                     if (random_int(0, 100) / 100) <= self.prob_mutation_per_grid:
-                        random_bulb = session.query(Bulb).order_by(func.rand()).first()
+                        # filtrar por tipo de luz
+                        random_bulb = session.query(Bulb).filter_by(light_type=self.light_type).order_by(func.rand()).first()
                         old_x = grids[i]["x"]
                         old_y = grids[i]["y"]
-                        grids[i] = self.calculate_data_per_grid(
+                        grids[i] = self.__calculate_data_per_grid(
                             width_per_grid,
                             height_per_grid,
                             random_bulb,
@@ -214,15 +220,18 @@ class LightsDesignerAlgorithm:
                         grids[i]["y"] = old_y
 
                 indv["grids"] = grids
-                indv["mean"] = self.calculate_mean(grids)
-                indv["standard_deviation"] = self.calculate_standard_deviation(
+                indv["mean"] = self.__calculate_mean(grids)
+                indv["standard_deviation"] = self.__calculate_standard_deviation(
                     grids, indv["mean"]
                 )
-                indv["fitness"] = abs(self.min_flux_needed - indv["mean"])
+                indv["fitness"] = self.__get_fitness(
+                    indv["mean"],
+                    indv["standard_deviation"],
+                )
 
         return population
 
-    def get_mean_best_worst_fitness(self, population: np.ndarray):
+    def __get_mean_best_worst_fitness(self, population: np.ndarray):
         best = population[0]
         worst = population[0]
         mean = 0
@@ -235,18 +244,17 @@ class LightsDesignerAlgorithm:
 
         return best, worst, mean / len(population)
 
-    def prune(self, population: np.ndarray):
+    def __prune(self, population: np.ndarray):
         # keep the best
         population = sorted(population, key=lambda x: x["fitness"])
         population = population[: self.max_population]
         return population
 
-    def get_fitness(self, mean: float, standard_deviation: float):
-        # sacar el fitness en base al siguiente puntaje
-        # abs(self.min_flux_needed - new_system2_mean) = 0 -> puntaje de 10
-        # standard_deviation = 0 -> puntaje de 10
+    def __get_fitness(self, mean: float, standard_deviation: float):
+        # abs(self.min_flux_needed - new_system2_mean) == 0 -> 100
+        # standard_deviation < 0.1 -> 100
 
-        return 10 - (abs(self.min_flux_needed - mean) + standard_deviation)
+        return abs(100 - (abs(self.min_flux_needed - mean) + (standard_deviation*2)) / 2)
 
 
 if __name__ == "__main__":
@@ -304,22 +312,25 @@ if __name__ == "__main__":
     best_system_ax.set_ylabel("Alto")
     best_system_ax.set_xlim(0, width)
     best_system_ax.set_ylim(0, height)
-    # draw grid
     for i in range(grid_width):
         best_system_ax.axvline(i * (width / grid_width), color="black")
     for i in range(grid_height):
         best_system_ax.axhline(i * (height / grid_height), color="black")
 
-    # draw bulbs
     for grid in best_system_grids:
-        best_system_ax.scatter(grid["x"], grid["y"], s=grid["bulb"].lumens, color="yellow")
+        best_system_ax.scatter(
+            grid["x"], grid["y"], s=grid["bulb"].lumens, color="yellow"
+        )
 
-    # agregar luxes por grid
     for grid in best_system_grids:
         best_system_ax.text(grid["x"], grid["y"], f"{grid['luxes']:.2f}", fontsize=8)
 
-
-
-
+    # graficar los luxes de cada grid del mejor sistema
+    luxes_figure, luxes_ax = plt.subplots()
+    luxes_figure.canvas.manager.set_window_title("Luxes por grid del mejor sistema")
+    luxes_ax.set_title("Luxes por grid del mejor sistema")
+    luxes_ax.set_xlabel("Grid")
+    luxes_ax.set_ylabel("Luxes")
+    luxes_ax.plot([x["luxes"] for x in best_system_grids])
 
     plt.show()
