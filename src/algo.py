@@ -45,7 +45,7 @@ class LightsDesignerAlgorithm:
         population_history = []
         statistics_history = []
 
-        for _ in range(self.generations):
+        for generation in range(self.generations):
             # Select parents
             parents = self.__select_parents(population)
 
@@ -71,7 +71,7 @@ class LightsDesignerAlgorithm:
             statistics_history.append(
                 {"best": best["fitness"], "worst": worst["fitness"], "mean": mean}
             )
-            print(f"Best: {best['fitness']}, Worst: {worst['fitness']}, Mean: {mean}")
+            # print(f"Best: {best['fitness']}, Worst: {worst['fitness']}, Mean: {mean}")
             population_history.append(population)
 
             # Prune population
@@ -254,83 +254,7 @@ class LightsDesignerAlgorithm:
         # abs(self.min_flux_needed - new_system2_mean) == 0 -> 100
         # standard_deviation < 0.1 -> 100
 
-        return abs(100 - (abs(self.min_flux_needed - mean) + (standard_deviation*2)) / 2)
-
-
-if __name__ == "__main__":
-    width = 5
-    height = 5
-    grid_width = 8
-    grid_height = 5
-    light_type = "LED"
-    min_flux_needed = 300
-    init_population = 10
-    max_population = 10
-    prob_crossover = 0.4
-    prob_mutation = 0.6
-    prob_mutation_per_grid = 0.5
-    generations = 50
-    algo = LightsDesignerAlgorithm(
-        width,
-        height,
-        grid_width,
-        grid_height,
-        light_type,
-        min_flux_needed,
-        init_population,
-        max_population,
-        prob_mutation,
-        prob_mutation_per_grid,
-        prob_crossover,
-        generations,
-    )
-    population_history, statistics_history = algo.run()
-
-    # graficar historial de estadisticas
-    stats_figure, stats_ax = plt.subplots()
-    stats_figure.canvas.manager.set_window_title("Historial de estadisticas")
-    stats_ax.set_title("Historial de estadisticas")
-    stats_ax.set_xlabel("Generaciones")
-    stats_ax.set_ylabel("Fitness")
-    stats_ax.plot([x["best"] for x in statistics_history], label="Mejor")
-    stats_ax.plot([x["worst"] for x in statistics_history], label="Peor")
-    stats_ax.plot([x["mean"] for x in statistics_history], label="Promedio")
-    stats_ax.legend()
-
-    # graficar el mejor individuo de la ultima generacion
-    # este representa el mejor diseño de iluminacion, por lo que se debe primero graficar el grid
-    best_system = population_history[-1][0]
-    best_system_grids = best_system["grids"]
-    best_system_mean = best_system["mean"]
-    best_system_standard_deviation = best_system["standard_deviation"]
-    best_system_fitness = best_system["fitness"]
-
-    best_system_figure, best_system_ax = plt.subplots()
-    best_system_figure.canvas.manager.set_window_title("Mejor sistema de iluminacion")
-    best_system_ax.set_title("Mejor sistema de iluminacion")
-    best_system_ax.set_xlabel("Ancho")
-    best_system_ax.set_ylabel("Alto")
-    best_system_ax.set_xlim(0, width)
-    best_system_ax.set_ylim(0, height)
-    for i in range(grid_width):
-        best_system_ax.axvline(i * (width / grid_width), color="black")
-    for i in range(grid_height):
-        best_system_ax.axhline(i * (height / grid_height), color="black")
-
-    for grid in best_system_grids:
-        best_system_ax.scatter(
-            grid["x"], grid["y"], s=grid["bulb"].lumens, color="yellow"
-        )
-
-    for grid in best_system_grids:
-        best_system_ax.text(grid["x"], grid["y"], f"{grid['luxes']:.2f}", fontsize=8)
-
-    # graficar los luxes de cada grid del mejor sistema
-    luxes_figure, luxes_ax = plt.subplots()
-    luxes_figure.canvas.manager.set_window_title("Luxes por grid del mejor sistema")
-    luxes_ax.set_title("Luxes por grid del mejor sistema")
-    luxes_ax.set_xlabel("Grid")
-    luxes_ax.set_ylabel("Luxes")
-    luxes_ax.plot([x["luxes"] for x in best_system_grids])
-
-    plt.show()
+        # error relativo
+        error = (abs(self.min_flux_needed - mean) / self.min_flux_needed) * standard_deviation
+        # print(f"Error: {error}")
+        return error

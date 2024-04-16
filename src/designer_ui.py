@@ -145,7 +145,6 @@ class DesignerUI:
         )
         population_history, statistics_history = algo.run()
 
-        # graficar historial de estadisticas
         stats_figure, stats_ax = plt.subplots()
         stats_figure.canvas.manager.set_window_title("Historial de estadisticas")
         stats_ax.set_title("Historial de estadisticas")
@@ -156,8 +155,7 @@ class DesignerUI:
         stats_ax.plot([x["mean"] for x in statistics_history], label="Promedio")
         stats_ax.legend()
 
-        # graficar el mejor individuo de la ultima generacion
-        # este representa el mejor diseño de iluminacion, por lo que se debe primero graficar el grid
+
         best_system = population_history[-1][0]
         best_system_grids = best_system["grids"]
         best_system_mean = best_system["mean"]
@@ -173,28 +171,36 @@ class DesignerUI:
         best_system_ax.set_ylabel("Alto")
         best_system_ax.set_xlim(0, width)
         best_system_ax.set_ylim(0, height)
-        # draw grid
+
         for i in range(grid_width):
             best_system_ax.axvline(i * (width / grid_width), color="black")
         for i in range(grid_height):
             best_system_ax.axhline(i * (height / grid_height), color="black")
 
-        # draw bulbs
+        width_per_grid = width / grid_width
+        height_per_grid = height / grid_height
         for grid in best_system_grids:
-            best_system_ax.scatter(
-                grid["x"], grid["y"], s=grid["bulb"].lumens, color="yellow"
+            color = (grid["luxes"] / 300, grid["luxes"] / 300, 1)
+            x1 = grid["x"] - width_per_grid / 2
+            x2 = grid["x"] + width_per_grid / 2
+            y1 = grid["y"] - height_per_grid / 2
+            y2 = grid["y"] + height_per_grid / 2
+            best_system_ax.add_patch(
+                plt.Rectangle((x1, y1), width_per_grid, height_per_grid, color=color)
             )
 
 
-        # graficar los luxes de cada grid del mejor sistema
         luxes_figure, luxes_ax = plt.subplots()
-        luxes_figure.canvas.manager.set_window_title("Luxes por grid del mejor sistema")
-        luxes_ax.set_title("Luxes por grid del mejor sistema")
+        luxes_figure.canvas.manager.set_window_title("Luxes por grid")
+        luxes_ax.set_title("Luxes por grid")
         luxes_ax.set_xlabel("Grid")
         luxes_ax.set_ylabel("Luxes")
-        luxes_ax.plot([x["luxes"] for x in best_system_grids])
+        luxes_ax.bar(
+            [i + 1 for i in range(len(best_system_grids))],
+            [grid["luxes"] for grid in best_system_grids],
+        )
 
-        # crear ventana y mostrar configuracion del sistema
+
         config_window = tk.Toplevel(self.root)
         config_window.title("Configuracion del sistema")
         config_window.geometry("800x500")
